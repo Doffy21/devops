@@ -1,22 +1,69 @@
 version: "3.8"
 services:
   db:
-    image: mysql
-    ports:
-      - "3306:3306"
+    image: mysql:8
     environment:
-      - MYSQL_ROOT_PASSWORD=root
-      - MYSQL_DATABASE=tlc
-      - MYSQL_USER=tlc
-      - MYSQL_PASSWORD=tlc
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+    volumes:
+      - db-data:/var/lib/mysql
+    networks:
+      - backend
+
   etherpad:
     image: etherpad/etherpad:1.8.6
-    ports:
-      - "9001:9001"
     volumes:
       - ./APIKEY.txt:/opt/etherpad-lite/APIKEY.txt
+    networks:
+      - backend
+    ports:
+      - "9001:9001"  # Exposé seulement si nécessaire
+
   mail:
     image: bytemark/smtp
     restart: always
+    networks:
+      - backend
+    expose:
+      - "25"  # pas de "ports", on n’expose pas au monde extérieur
+  
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    command: ./mvnw quarkus:dev
+    volumes:
+      - .:/app
+    working_dir: /app
+    depends_on:
+      - db
+    environment:
+      - QUARKUS_DATASOURCE_USERNAME=${MYSQL_USER}
+      - QUARKUS_DATASOURCE_PASSWORD=${MYSQL_PASSWORD}
+      - QUARKUS_DATASOURCE_JDBC_URL=jdbc:mysql://db:3306/${MYSQL_DATABASE}
     ports:
-      - "2525:25"
+      - "8080:8080"
+    networks:
+      - backend
+
+  frontend:
+    image: node:16
+    working_dir: /app
+    volumes:
+      - ../front:/app
+    command: sh -c "npm install && npm run start"
+    ports:
+      - "4200:4200"
+    networks:
+      - backend
+    depends_on:
+      - backend
+
+networks:
+  backend:
+    driver: bridge
+
+volumes:
+  db-data:
