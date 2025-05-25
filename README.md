@@ -109,3 +109,70 @@ docker run --rm -it \
 ```
 
 Remplace `backend` par le nom réel du conteneur Docker que tu veux auditer (visible avec `docker ps`)
+
+
+
+## La gestion des secrets avec HashiCorp Vault
+
+Pour sécuriser les secrets et les variables sensibles, [HashiCorp Vault](https://www.vaultproject.io/) a été intégré dans l’infrastructure. Vault permet de centraliser et de gérer les secrets de manière sécurisée, tout en limitant leur exposition dans les fichiers de configuration.
+
+---
+
+### Intégration de Vault
+
+- Un conteneur Vault a été ajouté à l’architecture Docker Compose.
+- Les secrets sensibles, tels que les identifiants de base de données (`DB_USER`, `DB_PASS`) et d'autres clés sensibles, sont destinés à être gérés via Vault.
+- Actuellement, seule la clé `API_KEY` a été stockée dans Vault pour des tests, en utilisant la commande suivante :
+
+```bash
+docker exec -e VAULT_ADDR=http://127.0.0.1:8200 \
+  -e VAULT_SKIP_VERIFY=true \
+  -e VAULT_TOKEN=root \
+  -it vault \
+  vault kv put secret/api API_KEY=your_api_key
+```
+
+- Les services peuvent accéder aux secrets via l’API de Vault, en utilisant des tokens d’authentification.
+
+---
+
+### Limites actuelles
+
+- **Fichier de secret `API_KEY` non supprimé :** Bien que la clé `API_KEY` ait été stockée dans Vault, le fichier contenant cette clé n’a pas encore été supprimé. Cela nécessite une adaptation complète du code pour utiliser exclusivement Vault.
+- **Secrets volatils :** Les secrets stockés dans Vault disparaissent lorsque les conteneurs sont redémarrés. Cela est dû à l’utilisation d’un backend de stockage en mémoire (non persistant). Une solution envisagée est de configurer un backend persistant, comme un stockage de fichiers ou une base de données.
+- **Utilisation limitée :** Pour l’instant, seul le secret `API_KEY` est géré dans Vault. L’objectif est d’étendre cette gestion à tous les secrets sensibles de l’infrastructure.
+
+---
+
+### Commandes utiles pour Vault
+
+Pour initialiser et déverrouiller Vault après le démarrage du conteneur :
+
+```bash
+# Initialiser Vault
+vault operator init
+
+# Déverrouiller Vault
+vault operator unseal
+```
+
+Pour ajouter un secret dans Vault :
+
+```bash
+vault kv put secret/myapp API_KEY=your_api_key
+```
+
+Pour récupérer un secret depuis Vault :
+
+```bash
+vault kv get secret/myapp
+```
+
+---
+
+### Améliorations futures
+
+- Supprimer complètement les fichiers contenant des secrets sensibles, comme `API_KEY`, et migrer leur gestion vers Vault.
+- Configurer un backend persistant pour Vault afin de conserver les secrets même après un redémarrage des conteneurs.
+- Étendre l’utilisation de Vault pour gérer tous les secrets sensibles de l’infrastructure, tels que les identifiants de base de données et autres clés critiques.
+- Automatiser l’initialisation et le déverrouillage de Vault pour simplifier son utilisation dans l’environnement Docker.
