@@ -95,3 +95,17 @@ docker run --rm -it \
   chef/inspec \
   init profile /share/container-security
 ```
+
+### Exécution d’un profil InSpec sur un conteneur Docker
+
+Pour exécuter les audits de sécurité InSpec sur les conteneurs (comme `backend`), il faut connaitre le nom du conteneur et qu'il soit lancé.
+
+```bash
+docker run --rm -it \
+  -v "$PWD":/share \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  chef/inspec \
+  exec /share/container-security -t docker://backend
+```
+
+Remplace `backend` par le nom réel du conteneur Docker que tu veux auditer (visible avec `docker ps`)
